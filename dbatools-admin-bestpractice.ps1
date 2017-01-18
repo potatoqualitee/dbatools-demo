@@ -1,7 +1,10 @@
 ﻿# IF THIS SCRIPT IS RUN ON LOCAL SQL INSTANCES, YOU MUST RUN ISE OR POWERSHELL AS ADMIN
 # Otherwise, a bunch of commands won't work.
 
+# Paths that auto-load modules
 $env:PSModulePath -Split ";"
+
+# This is the [development] aka beta branch
 Import-Module C:\github\dbatools -Force
 
 # Set some vars
@@ -9,28 +12,31 @@ $new = "localhost\sql2016"
 $old = $instance = "localhost"
 $allservers = "localhost","localhost\sql2016"
 
-# Connect-DbaSqlServer + sp_configure
-$oldserver = Get-DbaSpConfigure -SqlServer $old
-$newserver = Get-DbaSpConfigure -SqlServer $new
+# Get-DbaSpConfigure - @sirsql
+$oldprops = Get-DbaSpConfigure -SqlServer localhost
+$newprops = Get-DbaSpConfigure -SqlServer localhost\sql2016
 
-$propcompare = foreach ($prop in $oldserver) {
+$propcompare = foreach ($prop in $oldprops) {
     [pscustomobject]@{
     Config = $prop.DisplayName
     'SQL Server 2012' = $prop.RunningValue
-    'SQL Server 2016' = $newserver | Where DisplayName -eq $prop.DisplayName | Select -ExpandProperty RunningValue
+    'SQL Server 2016' = $newprops | Where ConfigName -eq $prop.ConfigName | Select -ExpandProperty RunningValue
     }
 } 
 
 $propcompare | Out-GridView
 
-# Get-DbaSpConfigure - @sirsql
-Get-DbaSpConfigure -SqlServer $old
-
 # Copy-SqlSpConfigure
-Copy-SqlSpConfigure -Source $old -Destination $new
+Copy-SqlSpConfigure -Source $old -Destination $new -Configs DefaultBackupCompression, IsSqlClrEnabled
+
+#Copy-SqlSpConfigure -Source localhost -conf
+
+# Get-DbaSpConfigure - @sirsql
+Get-DbaSpConfigure -SqlServer $old | Where-Object { $_.ConfigName -in 'DefaultBackupCompression', 'IsSqlClrEnabled' }
+
 
 # Get-DbaLastBackup - by @powerdbaklaas
-$allservers | Get-DbaLastBackup | Format-Table -AutoSize
+$allservers | Get-DbaLastBackup
 $allservers | Get-DbaLastBackup | Where-Object LastFullBackup -eq $null | Format-Table -AutoSize
 $allservers | Get-DbaLastBackup | Where-Object { $_.LastLogBackup -eq $null -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Format-Table -AutoSize
 $allservers | Get-DbaLastBackup | Where-Object { $_.SinceLog -gt '00:15:00' -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Format-Table -AutoSize
@@ -55,14 +61,13 @@ Test-DbaLastBackup -SqlServer $instance -Destination $new -VerifyOnly | Out-Grid
 
 Start-Process https://youtu.be/Ah0jabU9G8o?t=2m56s
 
-# One of my favs! - by @sqldbawithbeard
-Get-Help Remove-SqlDatabaseSafely -Online
-Remove-SqlDatabaseSafely -SqlServer $instance -Databases AdventureWorks2008R2 -BackupFolder \\workstation\migration
-
 # Test/Repair
 Test-DbaServerName -SqlServer $allservers
 Repair-DbaServerName -SqlServer $allservers
 
+# One of my favs! - by @sqldbawithbeard
+Get-Help Remove-SqlDatabaseSafely -Online
+Remove-SqlDatabaseSafely -SqlServer $instance -Databases AdventureWorks2008R2 -BackupFolder \\workstation\migration
 
 # Get and Set SqlTempDbConfiguration - by @mike_fal
 Get-Help Test-SqlTempDbConfiguration -Online
