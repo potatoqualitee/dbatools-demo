@@ -13,8 +13,8 @@ $old = $instance = "localhost"
 $allservers = "localhost","localhost\sql2016"
 
 # Get-DbaSpConfigure - @sirsql
-$oldprops = Get-DbaSpConfigure -SqlServer localhost
-$newprops = Get-DbaSpConfigure -SqlServer localhost\sql2016
+$oldprops = Get-DbaSpConfigure -SqlServer $old
+$newprops = Get-DbaSpConfigure -SqlServer $new
 
 $propcompare = foreach ($prop in $oldprops) {
     [pscustomobject]@{
@@ -29,17 +29,16 @@ $propcompare | Out-GridView
 # Copy-SqlSpConfigure
 Copy-SqlSpConfigure -Source $old -Destination $new -Configs DefaultBackupCompression, IsSqlClrEnabled
 
-#Copy-SqlSpConfigure -Source localhost -conf
-
 # Get-DbaSpConfigure - @sirsql
-Get-DbaSpConfigure -SqlServer $old | Where-Object { $_.ConfigName -in 'DefaultBackupCompression', 'IsSqlClrEnabled' }
+Get-DbaSpConfigure -SqlServer $new | Where-Object { $_.ConfigName -in 'DefaultBackupCompression', 'IsSqlClrEnabled' } | 
+Select-Object ConfigName, RunningValue, IsRunningDefaultValue | Format-Table -AutoSize
 
 
 # Get-DbaLastBackup - by @powerdbaklaas
 $allservers | Get-DbaLastBackup
 $allservers | Get-DbaLastBackup | Where-Object LastFullBackup -eq $null | Format-Table -AutoSize
-$allservers | Get-DbaLastBackup | Where-Object { $_.LastLogBackup -eq $null -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Format-Table -AutoSize
-$allservers | Get-DbaLastBackup | Where-Object { $_.SinceLog -gt '00:15:00' -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Format-Table -AutoSize
+$allservers | Get-DbaLastBackup | Where-Object { $_.LastLogBackup -eq $null -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Select Server, Database, SinceLog | Format-Table -AutoSize
+$allservers | Get-DbaLastBackup | Where-Object { $_.SinceLog -gt '00:15:00' -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Select Server, Database, SinceLog | Format-Table -AutoSize
 
 # LastGoodCheckDb - by @jagoop
 $checkdbs = Get-DbaLastGoodCheckDb -SqlServer $instance
@@ -146,23 +145,7 @@ Get-DbaDatabaseFreespace -SqlServer $instance -IncludeSystemDBs | Out-DbaDataTab
 # Run a lil query
 Ssms.exe "C:\temp\tempdbquery.sql"
 
-<# Good ol Phil #>
-
-$login = "WORKSTATION\phil"
-
-Add-SqlLogin -ServerInstance $instance -LoginName $login -LoginType WindowsUser
-Set-DbaDatabaseOwner -SqlServer $instance -Databases WSS_Logging, AdventureWorks2012 -TargetLogin $login
-Set-DbaJobOwner -SqlServer $instance -Jobs 'Backup - Full - User','Backup - Full - System' -TargetLogin $login
-
-Remove-SqlLogin -ServerInstance $instance  -LoginName $login -RemoveAssociatedUsers
-
-Set-DbaDatabaseOwner -SqlServer $instance -Databases WSS_Logging, AdventureWorks2012 -TargetLogin sa
-Set-DbaJobOwner -SqlServer $instance -Jobs 'Backup - Full - User','Backup - Full - System' -TargetLogin sa
-
-Remove-SqlLogin -ServerInstance $instance -LoginName $login -RemoveAssociatedUsers
-
-<#Party-Parrot#>
-
+# Copy-SqlDatabase
 Get-Command *Orphan*
 Copy-SqlDatabase -Source $old -Destination $new -DetachAttach -Reattach -Databases WSS_Logging -Force
 Repair-SqlOrphanUser -SqlServer $new
