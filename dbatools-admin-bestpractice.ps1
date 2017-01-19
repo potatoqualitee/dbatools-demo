@@ -55,18 +55,18 @@ Get-Help Test-DbaLastBackup -Online
 Invoke-Item (Get-Item SQLSERVER:\SQL\LOCALHOST\DEFAULT).DefaultFile
 
 Test-DbaLastBackup -SqlServer $instance 
-Test-DbaLastBackup -SqlServer $instance -Destination $new -MaxMb 10
+Test-DbaLastBackup -SqlServer $instance -Destination $new -MaxMb 10 | Format-Table
 Test-DbaLastBackup -SqlServer $instance -Destination $new -VerifyOnly | Out-GridView
 
 Start-Process https://youtu.be/Ah0jabU9G8o?t=2m56s
 
-# Test/Repair
-Test-DbaServerName -SqlServer $allservers
-Repair-DbaServerName -SqlServer $allservers
-
 # One of my favs! - by @sqldbawithbeard
 Get-Help Remove-SqlDatabaseSafely -Online
 Remove-SqlDatabaseSafely -SqlServer $instance -Databases AdventureWorks2008R2 -BackupFolder \\workstation\migration
+
+# Test/Repair Windows/SQL Server name
+Test-DbaServerName -SqlServer $allservers
+Repair-DbaServerName -SqlServer $allservers
 
 # Get and Set SqlTempDbConfiguration - by @mike_fal
 Get-Help Test-SqlTempDbConfiguration -Online
