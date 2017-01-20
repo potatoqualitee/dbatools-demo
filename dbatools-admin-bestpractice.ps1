@@ -49,17 +49,26 @@ $checkdbs | Where LastGoodCheckDb -lt (Get-Date).AddDays(-1)
 # Disk Space - by a bunch of us
 Get-DbaDiskSpace -SqlInstance $allservers
 $diskspace = Get-DbaDiskSpace -SqlInstance $allservers -Detailed
-$diskspace  | Where PercentFree -lt 20 
+$diskspace | Where PercentFree -lt 20
 
 # Test last backup
 Get-Help Test-DbaLastBackup -Online
+Import-Module SqlServer
 Invoke-Item (Get-Item SQLSERVER:\SQL\LOCALHOST\DEFAULT).DefaultFile
 
 Test-DbaLastBackup -SqlServer $instance 
-Test-DbaLastBackup -SqlServer $instance -Destination $new -MaxMb 10 | Format-Table
+Test-DbaLastBackup -SqlServer $instance -Destination $new -MaxMb 10 | Out-GridView
 Test-DbaLastBackup -SqlServer $instance -Destination $new -VerifyOnly | Out-GridView
 
-Start-Process https://youtu.be/Ah0jabU9G8o?t=2m56s
+# Test-VirtualLog file - Expand-SqlTLogResponsibly down below
+$allservers | Test-DbaVirtualLogFile
+$bigvlfs = $allservers | Test-DbaVirtualLogFile | Where-Object {$_.Count -ge 50} | Sort-Object Count -Descending
+$bigvlfs
+
+# Remove dat orphan - by @sqlstad
+Find-DbaOrphanedFile -SqlServer $instance
+((Find-DbaOrphanedFile -SqlServer $instance -LocalOnly | Get-ChildItem | Select -ExpandProperty Length | Measure-Object -Sum)).Sum / 1MB
+Find-DbaOrphanedFile -SqlServer $instance -LocalOnly | Remove-Item
 
 # One of my favs! - by @sqldbawithbeard
 Get-Help Remove-SqlDatabaseSafely -Online
@@ -93,14 +102,8 @@ Reset-SqlAdmin -SqlServer $instance -Login sqladmin
 Test-DbaFullRecoveryModel -SqlServer $instance
 Test-DbaFullRecoveryModel -SqlServer $instance | Where { $_.ConfiguredRecoveryModel -ne $_.ActualRecoveryModel }
 
-# Test-VirtualLog file
-$allservers | Test-DbaVirtualLogFile
-$bigvlfs = $allservers | Test-DbaVirtualLogFile | Where-Object {$_.Count -ge 50} | Sort-Object Count -Descending
-$bigvlfs
-
-$database = ($bigvlfs | Select -Last 1).Database
-
 # Virtual Log files
+$database = ($bigvlfs | Select -Last 1).Database
 Expand-SqlTLogResponsibly -SqlServer $instance -Databases $database -TargetLogSizeMB 16 -IncrementSizeMB 1 -ShrinkLogFile -ShrinkSizeMB 1 
 Test-DbaVirtualLogFile -SqlServer $instance -Databases $database
 
@@ -110,11 +113,6 @@ Read-DbaBackupHeader -SqlServer $instance -Path C:\migration\SQL2012\WSS_Content
 SELECT ServerName, DatabaseName, UserName, BackupFinishDate, SqlVersion, BackupSizeMB
 
 Read-DbaBackupHeader -SqlServer $instance -Path C:\migration\SQL2012\WSS_Content\FULL\SQL2012_WSS_Content_FULL_20161218_113644.bak -FileList  | Out-GridView
-
-# Remove dat orphan - by @sqlstad
-Find-DbaOrphanedFile -SqlServer $instance
-((Find-DbaOrphanedFile -SqlServer $instance -LocalOnly | Get-ChildItem | Select -ExpandProperty Length | Measure-Object -Sum)).Sum / 1MB
-Find-DbaOrphanedFile -SqlServer $instance -LocalOnly | Remove-Item
 
 # Backup History!
 Get-DbaBackupHistory -SqlServer $instance
