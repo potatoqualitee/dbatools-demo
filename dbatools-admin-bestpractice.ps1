@@ -37,12 +37,13 @@ Select-Object ConfigName, RunningValue, IsRunningDefaultValue | Format-Table -Au
 # Get-DbaLastBackup - by @powerdbaklaas
 $allservers | Get-DbaLastBackup
 $allservers | Get-DbaLastBackup | Where-Object LastFullBackup -eq $null | Format-Table -AutoSize
-$allservers | Get-DbaLastBackup | Where-Object { $_.LastLogBackup -eq $null -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Select Server, Database, SinceLog | Format-Table -AutoSize
-$allservers | Get-DbaLastBackup | Where-Object { $_.SinceLog -gt '00:15:00' -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Select Server, Database, SinceLog | Format-Table -AutoSize
+$allservers | Get-DbaLastBackup | Where-Object { $_.LastLogBackup -eq $null -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Select Server, Database, SinceFull, DatabaseCreated | Format-Table -AutoSize
+$allservers | Get-DbaLastBackup | Where-Object { $_.SinceLog -gt '00:15:00' -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Select Server, Database, SinceLog | Out-GridView
 
 # LastGoodCheckDb - by @jagoop
 $checkdbs = Get-DbaLastGoodCheckDb -SqlServer $instance
 $checkdbs
+$checkdbs | Where LastGoodCheckDb -eq $null
 $checkdbs | Where LastGoodCheckDb -lt (Get-Date).AddDays(-1)
 
 # Disk Space - by a bunch of us
