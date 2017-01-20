@@ -37,8 +37,7 @@ Select-Object ConfigName, RunningValue, IsRunningDefaultValue | Format-Table -Au
 # Get-DbaLastBackup - by @powerdbaklaas
 $allservers | Get-DbaLastBackup
 $allservers | Get-DbaLastBackup | Where-Object LastFullBackup -eq $null | Format-Table -AutoSize
-$allservers | Get-DbaLastBackup | Where-Object { $_.LastLogBackup -eq $null -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Select Server, Database, SinceFull, DatabaseCreated | Format-Table -AutoSize
-$allservers | Get-DbaLastBackup | Where-Object { $_.SinceLog -gt '00:15:00' -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Select Server, Database, SinceLog | Out-GridView
+$allservers | Get-DbaLastBackup | Where-Object { $_.SinceLog -gt '00:15:00' -and $_.RecoveryModel -ne 'Simple' -and $_.Database -ne 'model' } | Select Server, Database, SinceFull, DatabaseCreated | Out-GridView
 
 # LastGoodCheckDb - by @jagoop
 $checkdbs = Get-DbaLastGoodCheckDb -SqlServer $instance
@@ -63,6 +62,15 @@ Test-DbaLastBackup -SqlServer $instance -Destination $new -VerifyOnly | Out-Grid
 $allservers | Test-DbaVirtualLogFile
 $bigvlfs = $allservers | Test-DbaVirtualLogFile | Where-Object {$_.Count -ge 50} | Sort-Object Count -Descending
 $bigvlfs
+
+# Virtual Log files - if time allots - 2 commands left before beard
+# Expand-SqlTLogResponsibly by @ClaudioESSilva
+$database = ($bigvlfs | Select -Last 1).Database
+Expand-SqlTLogResponsibly -SqlServer $instance -Databases $database -TargetLogSizeMB 16 -IncrementSizeMB 1 -ShrinkLogFile -ShrinkSizeMB 1 
+Test-DbaVirtualLogFile -SqlServer $instance -Databases $database
+
+# Awesome!
+Reset-SqlAdmin -SqlServer $instance -Login sqladmin
 
 # Remove dat orphan - by @sqlstad
 Find-DbaOrphanedFile -SqlServer $instance
@@ -94,17 +102,9 @@ Set-DbaMaxMemory -SqlServer $instance -MaxMb 2048
 # sp_whoisactive
 Show-SqlWhoisActive -SqlServer $instance -ShowOwnSpid -ShowSystemSpids
 
-# Awesome!
-Reset-SqlAdmin -SqlServer $instance -Login sqladmin
-
 # Now
 Test-DbaFullRecoveryModel -SqlServer $instance
 Test-DbaFullRecoveryModel -SqlServer $instance | Where { $_.ConfiguredRecoveryModel -ne $_.ActualRecoveryModel }
-
-# Virtual Log files
-$database = ($bigvlfs | Select -Last 1).Database
-Expand-SqlTLogResponsibly -SqlServer $instance -Databases $database -TargetLogSizeMB 16 -IncrementSizeMB 1 -ShrinkLogFile -ShrinkSizeMB 1 
-Test-DbaVirtualLogFile -SqlServer $instance -Databases $database
 
 # backup header
 Read-DbaBackupHeader -SqlServer $instance -Path C:\migration\SQL2012\WSS_Content\FULL\SQL2012_WSS_Content_FULL_20161218_113644.bak
