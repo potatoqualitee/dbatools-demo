@@ -56,8 +56,7 @@ Get-Help Test-DbaLastBackup -Online
 Import-Module SqlServer
 Invoke-Item (Get-Item SQLSERVER:\SQL\LOCALHOST\DEFAULT).DefaultFile
 
-Test-DbaLastBackup -SqlServer $instance 
-Test-DbaLastBackup -SqlServer $instance -Destination $new -MaxMb 10 | Out-GridView
+Test-DbaLastBackup -SqlServer $instance | Out-GridView
 Test-DbaLastBackup -SqlServer $instance -Destination $new -VerifyOnly | Out-GridView
 
 # Test-VirtualLog file - Expand-SqlTLogResponsibly down below
