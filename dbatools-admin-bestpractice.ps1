@@ -106,6 +106,9 @@ Show-SqlWhoisActive -SqlServer $instance -ShowOwnSpid -ShowSystemSpids
 $allservers | Find-DbaStoredProcedure -Pattern dbatools
 $allservers | Find-DbaStoredProcedure -Pattern '\w+@\w+\.\w+'
 
+# Test-DbaSpns
+$allservers | Test-DbaSpn | Out-GridView -PassThru | Set-DbaSpn -Whatif
+
 # Now
 Test-DbaFullRecoveryModel -SqlServer $instance
 Test-DbaFullRecoveryModel -SqlServer $instance | Where { $_.ConfiguredRecoveryModel -ne $_.ActualRecoveryModel }
