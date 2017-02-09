@@ -102,6 +102,10 @@ Set-DbaMaxMemory -SqlServer $instance -MaxMb 2048
 # sp_whoisactive
 Show-SqlWhoisActive -SqlServer $instance -ShowOwnSpid -ShowSystemSpids
 
+# Find-DbaStoredProcdure
+$allservers | Find-DbaStoredProcedure -Pattern dbatools
+$allservers | Find-DbaStoredProcedure -Pattern '\w+@\w+\.\w+'
+
 # Now
 Test-DbaFullRecoveryModel -SqlServer $instance
 Test-DbaFullRecoveryModel -SqlServer $instance | Where { $_.ConfiguredRecoveryModel -ne $_.ActualRecoveryModel }
