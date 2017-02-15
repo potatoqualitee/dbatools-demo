@@ -13,7 +13,7 @@ $old = $instance = "sql2014"
 $coupleservers = "sql2012","sql2016"
 $allservers = "sql2008","sql2012","sql2014","sql2016", "sql2016a","sql2016b","sql2016c","sqlcluster","sql2005"
 
-# MY NEW TRIck (thanks @alexandair)
+# MY NEW TRIck (thanks @alexandair, et al)
 break
 
 #region configs
@@ -43,17 +43,40 @@ Select-Object ConfigName, RunningValue, IsRunningDefaultValue | Format-Table -Au
 
 #region backuprestore
 
+Start-Process https://dbatools.io/snowball
+
+# standard
+Restore-DbaDatabase -SqlServer localhost -Path C:\temp\SQL2016_Cube_Query_History_FULL_20170206_115448.bak
+Restore-DbaDatabase -SqlServer localhost -Path C:\temp\SQL2016_Cube_Query_History_FULL_20170206_115448.bak -WithReplace
+
+# ola!
+Invoke-Item \\nas\sql\SQL2016\db1
+Restore-DbaDatabase -SqlServer sql2016 -Path \\nas\sql\SQL2016\db1 -WithReplace -DestinationDataDirectory C:\temp
+
+foreach ($database in (Get-ChildItem -Directory \\nas\sql\SQL2016).FullName)
+{
+    Write-Output "Processing $database"
+    Restore-DbaDatabase -SqlServer sql2016\vnext -Path $database -NoRecovery # -RestoreTime (Get-date).AddHours(-3)
+}
+
+# What about backups?
+Get-DbaDatabase -SqlInstance sql2005 -Databases db_2005_CL80 | Backup-DbaDatabase -BackupDirectory C:\temp -NoCopyOnly
+
+# history
+Get-DbaBackupHistory -SqlServer sql2005 -Databases dumpsterfire4, db_2005_CL80 | Out-GridView
 
 # backup header
 Read-DbaBackupHeader -SqlServer $instance -Path "\\nas\sql\SQL2016\db1\FULL\SQL2016_db1_FULL_20170206_115448.bak"
-Read-DbaBackupHeader -SqlServer $instance -Path "\\nas\sql\SQL2016\db1\FULL\SQL2016_db1_FULL_20170206_115448.bak" | 
-SELECT ServerName, DatabaseName, UserName, BackupFinishDate, SqlVersion, BackupSizeMB
-
+Read-DbaBackupHeader -SqlServer $instance -Path "\\nas\sql\SQL2016\db1\FULL\SQL2016_db1_FULL_20170206_115448.bak" | SELECT ServerName, DatabaseName, UserName, BackupFinishDate, SqlVersion, BackupSizeMB
 Read-DbaBackupHeader -SqlServer $instance -Path "\\nas\sql\SQL2016\db1\FULL\SQL2016_db1_FULL_20170206_115448.bak" -FileList  | Out-GridView
+
+# Find it!
+Find-DbaCommand -Tag Backup
 
 #endregion
 
 #region SPN
+Start-Process https://dbatools.io/schwifty
 Start-Process "C:\Program Files\Microsoft\Kerberos Configuration Manager for SQL Server\KerberosConfigMgr.exe"
 
 Get-DbaSpn | Format-Table
