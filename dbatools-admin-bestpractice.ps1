@@ -1,5 +1,6 @@
 ﻿# IF THIS SCRIPT IS RUN ON LOCAL SQL INSTANCES, YOU MUST RUN ISE OR POWERSHELL AS ADMIN
 # Otherwise, a bunch of commands won't work.
+cls
 
 # Paths that auto-load modules
 $env:PSModulePath -Split ";"
@@ -11,7 +12,7 @@ Import-Module C:\github\dbatools -Force
 $new = "sql2016\vnext"
 $old = $instance = "sql2014"
 $coupleservers = "sql2012","sql2016"
-$allservers = "sql2008","sql2012","sql2014","sql2016", "sql2016a","sql2016b","sql2016c","sqlcluster","sql2005"
+$allservers = "sql2008","sql2012","sql2014","sql2016","sqlcluster","sql2005"
 
 # MY NEW TRIck (thanks @alexandair, et al)
 break
@@ -68,10 +69,9 @@ Get-DbaBackupHistory -SqlServer sql2005 -Databases dumpsterfire4, db_2005_CL80 |
 # backup header
 Read-DbaBackupHeader -SqlServer $instance -Path "\\nas\sql\SQL2016\db1\FULL\SQL2016_db1_FULL_20170206_115448.bak"
 Read-DbaBackupHeader -SqlServer $instance -Path "\\nas\sql\SQL2016\db1\FULL\SQL2016_db1_FULL_20170206_115448.bak" | SELECT ServerName, DatabaseName, UserName, BackupFinishDate, SqlVersion, BackupSizeMB
-Read-DbaBackupHeader -SqlServer $instance -Path "\\nas\sql\SQL2016\db1\FULL\SQL2016_db1_FULL_20170206_115448.bak" -FileList  | Out-GridView
 
 # Find it!
-Find-DbaCommand -Tag Backup
+Find-DbaCommand -Tag Config
 
 #endregion
 
@@ -110,8 +110,8 @@ Get-Help Test-DbaLastBackup -Online
 Import-Module SqlServer
 Invoke-Item (Get-Item SQLSERVER:\SQL\LOCALHOST\DEFAULT).DefaultFile
 
-Test-DbaLastBackup -SqlServer localhost | Out-GridView
-Test-DbaLastBackup -SqlServer localhost -Destination sql2016\vnext -VerifyOnly | Out-GridView
+Test-DbaLastBackup -SqlServer sql2005 | Out-GridView
+Test-DbaLastBackup -SqlServer sql2005 -Destination sql2016\vnext -VerifyOnly | Out-GridView
 
 #endregion
 
