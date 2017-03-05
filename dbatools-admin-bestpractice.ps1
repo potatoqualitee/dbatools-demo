@@ -1,6 +1,7 @@
-﻿break 
- 
- # IF THIS SCRIPT IS RUN ON LOCAL SQL INSTANCES, YOU MUST RUN ISE OR POWERSHELL AS ADMIN
+# Don't run everything, thanks @alexandair!
+break
+
+# IF THIS SCRIPT IS RUN ON LOCAL SQL INSTANCES, YOU MUST RUN ISE OR POWERSHELL AS ADMIN
 # Otherwise, a bunch of commands won't work.
 cls
 
