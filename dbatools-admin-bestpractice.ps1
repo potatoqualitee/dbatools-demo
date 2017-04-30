@@ -158,6 +158,9 @@ Get-DbaStartupParameter -SqlInstance $new
 
 # sp_whoisactive
 Invoke-DbaWhoisActive -SqlInstance $instance -ShowOwnSpid -ShowSystemSpids
+Install-DbaWhoIsActive -SqlInstance localhost -Database master
+Invoke-DbaWhoisActive -SqlInstance $instance -ShowOwnSpid -ShowSystemSpid
+Invoke-DbaWhoisActive -SqlInstance $instance -ShowOwnSpid -ShowSystemSpid | Out-GridView
 
 #endregion
 
