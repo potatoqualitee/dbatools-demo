@@ -10,6 +10,7 @@ $env:PSModulePath -Split ";"
 
 # This is the [development] aka beta branch
 Import-Module C:\github\dbatools -Force
+cd C:\github\dbatools
 
 # Set some vars
 $new = "localhost\sql2016"
@@ -26,13 +27,7 @@ Restore-DbaDatabase -SqlInstance localhost -Path "C:\temp\AdventureWorks2012-Ful
 
 # ola!
 Invoke-Item \\workstation\backups\WORKSTATION\SharePoint_Config
-Restore-DbaDatabase -SqlInstance $new -Path \\workstation\backups\WORKSTATION\SharePoint_Config -WithReplace -DestinationDataDirectory C:\temp
-
-foreach ($database in (Get-ChildItem -Directory \\workstation\backups\sql2012).FullName)
-{
-  Write-Output "Processing $database"
-  Restore-DbaDatabase -SqlInstance localhost\sql2016 -Path $database -NoRecovery -RestoreTime (Get-date).AddHours(-3)
-}
+Get-ChildItem -Directory \\workstation\backups\sql2012 | Restore-DbaDatabase -SqlInstance localhost\sql2016 -NoRecovery -RestoreTime (Get-date).AddHours(-3)
 
 # What about backups?
 Get-DbaDatabase -SqlInstance localhost -Databases SharePoint_Config | Backup-DbaDatabase -BackupDirectory C:\temp -NoCopyOnly
@@ -41,13 +36,14 @@ Get-DbaDatabase -SqlInstance localhost -Databases SharePoint_Config | Backup-Dba
 Get-DbaBackupHistory -SqlInstance localhost -Databases AdventureWorks2012, SharePoint_Config | Out-GridView
 
 # backup header
-Read-DbaBackupHeader -SqlInstance $instance -Path "\\workstation\backups\WORKSTATION\SharePoint_Config\FULL\WORKSTATION_SharePoint_Config_FULL_20170114_224317.bak"
 Read-DbaBackupHeader -SqlInstance $instance -Path "\\workstation\backups\WORKSTATION\SharePoint_Config\FULL\WORKSTATION_SharePoint_Config_FULL_20170114_224317.bak" | SELECT ServerName, DatabaseName, UserName, BackupFinishDate, SqlVersion, BackupSizeMB
 
-# Find it!
-Find-DbaCommand -Tag Config
-
 #endregion
+
+# Find it!
+Find-DbaCommand -Tag Backup
+Start-Process https://dbatools.io/command-search
+
 
 #region SPN
 Start-Process https://dbatools.io/schwifty
@@ -101,7 +97,6 @@ $allservers | Test-DbaVirtualLogFile | Where-Object {$_.Count -ge 50} | Sort-Obj
 
 # Get Db Free Space AND write it to disk
 Get-DbaDatabaseFreespace -SqlInstance $instance
-Get-DbaDatabaseFreespace -SqlInstance $instance -IncludeSystemDBs | Out-DbaDataTable | Write-DbaDataTable -SqlInstance $instance -Table tempdb.dbo.DiskSpaceExample
 Get-DbaDatabaseFreespace -SqlInstance $instance -IncludeSystemDBs | Out-DbaDataTable | Write-DbaDataTable -SqlInstance $instance -Database tempdb -Table DiskSpaceExample -AutoCreateTable
 
 # Run a lil query
@@ -121,14 +116,12 @@ Set-DbaMaxMemory -SqlInstance $instance -MaxMb 2048
 Test-DbaFullRecoveryModel -SqlInstance localhost
 Test-DbaFullRecoveryModel -SqlInstance localhost | Where { $_.ConfiguredRecoveryModel -ne $_.ActualRecoveryModel }
 
-# Backup History!
-Get-DbaBackupHistory -SqlInstance $instance
-Get-DbaBackupHistory -SqlInstance $instance | Out-GridView
-Get-DbaBackupHistory -SqlInstance $instance -Databases AdventureWorks2012 | Format-Table -AutoSize
-
 # Restore History!
 Get-DbaRestoreHistory -SqlInstance $instance | Out-GridView
- 
+
+# Testing sql server larock
+Test-DbaLinkedServerConnection -SqlInstance localhost
+
 #endregion
 
 #region mindblown
@@ -143,7 +136,7 @@ $allservers | Find-DbaStoredProcedure -Pattern '\w+@\w+\.\w+'
 # Remove dat orphan - by @sqlstad
 Find-DbaOrphanedFile -SqlInstance $instance
 ((Find-DbaOrphanedFile -SqlInstance $instance -RemoteOnly | Get-ChildItem | Select -ExpandProperty Length | Measure-Object -Sum)).Sum / 1MB
-Find-DbaOrphanedFile -SqlInstance $instance -RemoteOnly | Remove-Item
+Find-DbaOrphanedFile -SqlInstance $instance -RemoteOnly | Remove-Item -Whatif
 
 # Reset-SqlAdmin
 Reset-SqlAdmin -SqlInstance $instance -Login sqladmin
@@ -151,6 +144,11 @@ Reset-SqlAdmin -SqlInstance $instance -Login sqladmin
 #endregion
 
 #region bits and bobs
+# Interna config 
+Get-DbaConfig
+
+# find objects for users who are leaving
+Find-DbaUserObject -SqlInstance $instance -Pattern sa
 
 # DbaStartupParameter
 Get-DbaStartupParameter -SqlInstance $instance
@@ -162,6 +160,21 @@ Install-DbaWhoIsActive -SqlInstance localhost -Database master
 Invoke-DbaWhoisActive -SqlInstance $instance -ShowOwnSpid -ShowSystemSpid
 Invoke-DbaWhoisActive -SqlInstance $instance -ShowOwnSpid -ShowSystemSpid | Out-GridView
 
+# Exports
+Get-DbaDatabase -SqlInstance $old | Export-DbaScript
+$options = New-DbaScriptingOption
+$options.ScriptDrops = $false
+$options.WithDependencies = $true
+Get-DbaAgentJob -SqlInstance $old | Export-DbaScript -ScriptingOptionObject $options
+
+# Build ref!
+$allservers | Get-DbaSqlBuildReference | Format-Table
+
+# Identity usage
+Test-DbaIdentityUsage -SqlInstance $instance | Out-GridView
+
+# Execution plan export
+Get-DbaExecutionPlan -SqlInstance $instance | Export-DbaExecutionPlan -Path C:\temp
 #endregion
 
 #region configs
