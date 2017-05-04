@@ -13,8 +13,8 @@ Import-Module C:\github\dbatools -Force
 cd C:\github\dbatools
 
 # Set some vars
-$new = "localhost\sql2016"
-$old = $instance = "localhost"
+$new = "$instance\sql2016"
+$old = $instance = "$instance"
 $allservers = $old, $new
 
 #region backuprestore
@@ -22,18 +22,18 @@ $allservers = $old, $new
 Start-Process https://dbatools.io/snowball
 
 # standard
-Restore-DbaDatabase -SqlInstance localhost -Path "C:\temp\AdventureWorks2012-Full Database Backup.bak"
-Restore-DbaDatabase -SqlInstance localhost -Path "C:\temp\AdventureWorks2012-Full Database Backup.bak" -WithReplace
+Restore-DbaDatabase -SqlInstance $instance -Path "C:\temp\AdventureWorks2012-Full Database Backup.bak"
+Restore-DbaDatabase -SqlInstance $instance -Path "C:\temp\AdventureWorks2012-Full Database Backup.bak" -WithReplace
 
 # ola!
 Invoke-Item \\workstation\backups\WORKSTATION\SharePoint_Config
-Get-ChildItem -Directory \\workstation\backups\sql2012 | Restore-DbaDatabase -SqlInstance localhost\sql2016 -NoRecovery -RestoreTime (Get-date).AddHours(-3)
+Get-ChildItem -Directory \\workstation\backups\sql2012 | Restore-DbaDatabase -SqlInstance $instance\sql2016 -NoRecovery -RestoreTime (Get-date).AddHours(-3)
 
 # What about backups?
-Get-DbaDatabase -SqlInstance localhost -Databases SharePoint_Config | Backup-DbaDatabase -BackupDirectory C:\temp -NoCopyOnly
+Get-DbaDatabase -SqlInstance $instance -Databases SharePoint_Config | Backup-DbaDatabase -BackupDirectory C:\temp -NoCopyOnly
 
 # history
-Get-DbaBackupHistory -SqlInstance localhost -Databases AdventureWorks2012, SharePoint_Config | Out-GridView
+Get-DbaBackupHistory -SqlInstance $instance -Databases AdventureWorks2012, SharePoint_Config | Out-GridView
 
 # backup header
 Read-DbaBackupHeader -SqlInstance $instance -Path "\\workstation\backups\WORKSTATION\SharePoint_Config\FULL\WORKSTATION_SharePoint_Config_FULL_20170114_224317.bak" | SELECT ServerName, DatabaseName, UserName, BackupFinishDate, SqlVersion, BackupSizeMB
@@ -80,16 +80,10 @@ $diskspace | Where PercentFree -lt 20
 # Did you see? SqlServer module is now in the Powershell Gallery too!
 Get-Help Test-DbaLastBackup -Online
 Import-Module SqlServer
-Invoke-Item (Get-Item SQLSERVER:\SQL\LOCALHOST\DEFAULT).DefaultFile
+Invoke-Item (Get-Item SQLSERVER:\SQL\$instance\DEFAULT).DefaultFile
 
-Test-DbaLastBackup -SqlInstance localhost | Out-GridView
-Test-DbaLastBackup -SqlInstance localhost -Destination localhost\sql2016 -VerifyOnly | Out-GridView
-
-#endregion
-
-#region VLFs
-
-$allservers | Test-DbaVirtualLogFile | Where-Object {$_.Count -ge 50} | Sort-Object Count -Descending | Out-GridView
+Test-DbaLastBackup -SqlInstance $instance | Out-GridView
+Test-DbaLastBackup -SqlInstance $instance -Destination $instance\sql2016 -VerifyOnly | Out-GridView
 
 #endregion
 
@@ -113,14 +107,17 @@ $allservers | Test-DbaMaxMemory | Where-Object { $_.SqlMaxMB -gt $_.TotalMB } | 
 Set-DbaMaxMemory -SqlInstance $instance -MaxMb 2048
 
 # RecoveryModel
-Test-DbaFullRecoveryModel -SqlInstance localhost
-Test-DbaFullRecoveryModel -SqlInstance localhost | Where { $_.ConfiguredRecoveryModel -ne $_.ActualRecoveryModel }
+Test-DbaFullRecoveryModel -SqlInstance $instance
+Test-DbaFullRecoveryModel -SqlInstance $instance | Where { $_.ConfiguredRecoveryModel -ne $_.ActualRecoveryModel }
 
 # Restore History!
 Get-DbaRestoreHistory -SqlInstance $instance | Out-GridView
 
 # Testing sql server larock
-Test-DbaLinkedServerConnection -SqlInstance localhost
+Test-DbaLinkedServerConnection -SqlInstance $instance
+
+# Some vlfs
+$allservers | Test-DbaVirtualLogFile | Where-Object {$_.Count -ge 50} | Sort-Object Count -Descending | Out-GridView
 
 #endregion
 
@@ -144,8 +141,11 @@ Reset-SqlAdmin -SqlInstance $instance -Login sqladmin
 #endregion
 
 #region bits and bobs
-# Interna config 
+# Internal config 
 Get-DbaConfig
+
+# Glenn Berry's DMV
+ Invoke-DbaDiagnosticQuery -SqlInstance $instance | Export-DbaDiagnosticQuery -Path C:\temp
 
 # find objects for users who are leaving
 Find-DbaUserObject -SqlInstance $instance -Pattern sa
@@ -156,7 +156,7 @@ Get-DbaStartupParameter -SqlInstance $new
 
 # sp_whoisactive
 Invoke-DbaWhoisActive -SqlInstance $instance -ShowOwnSpid -ShowSystemSpids
-Install-DbaWhoIsActive -SqlInstance localhost -Database master
+Install-DbaWhoIsActive -SqlInstance $instance -Database master
 Invoke-DbaWhoisActive -SqlInstance $instance -ShowOwnSpid -ShowSystemSpid
 Invoke-DbaWhoisActive -SqlInstance $instance -ShowOwnSpid -ShowSystemSpid | Out-GridView
 
